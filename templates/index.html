@@ -369,7 +369,8 @@
                 const response = await fetch(url);
                 const result = await response.json();
                 if (result.success) {
-                    currentData = result.draws;
+                    // Reverse to show oldest first
+                    currentData = result.draws.slice().reverse();
                     displayResults();
                     const evalMsg = showEvaluation ? '（評価付き）' : '';
                     showMessage(result.count + '件の過去の抽選結果を読み込みました。' + evalMsg, 'success');
@@ -397,7 +398,8 @@
                 const historyResponse = await fetch('/api/data?evaluation=false');
                 const historyResult = await historyResponse.json();
                 if (historyResult.success) {
-                    historyData = historyResult.draws.slice(0, 5); // Get last 5 draws
+                    // Get last 5 draws and reverse to show oldest first
+                    historyData = historyResult.draws.slice(0, 5).reverse();
                 }
                 
                 // Then generate predictions
