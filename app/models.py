@@ -1,6 +1,6 @@
 """Data models for Loto7."""
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 
@@ -11,15 +11,19 @@ class Loto7Draw:
     date: str
     main: List[int]
     bonus: List[int]
+    evaluation: Optional[Dict[str, Any]] = field(default=None)
 
     def to_dict(self):
         """Convert to dictionary."""
-        return {
+        result = {
             'id': self.id,
             'date': self.date,
             'main': self.main,
             'bonus': self.bonus
         }
+        if self.evaluation:
+            result['evaluation'] = self.evaluation
+        return result
 
     @staticmethod
     def from_dict(data: dict):
@@ -28,7 +32,8 @@ class Loto7Draw:
             id=data['id'],
             date=data['date'],
             main=data['main'],
-            bonus=data['bonus']
+            bonus=data['bonus'],
+            evaluation=data.get('evaluation')
         )
 
     def validate(self) -> bool:
