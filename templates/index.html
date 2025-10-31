@@ -296,7 +296,10 @@
                         <span>フィルタ評価を表示する</span>
                     </label>
                 </div>
-                <button class="btn btn-primary" onclick="loadHistoricalData()">過去の結果を表示</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="loadHistoricalData()">過去の結果を表示</button>
+                    <button class="btn btn-secondary" onclick="downloadHistoricalData()" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">📥 JSONダウンロード</button>
+                </div>
             </div>
             <div id="tab-predict" class="tab-content">
                 <p style="color: #666; margin-bottom: 15px;">統計的分析に基づいて、次回の抽選の候補番号を複数個生成します。</p>
@@ -379,6 +382,44 @@
                 }
             } catch (error) {
                 showMessage('データの読み込みに失敗しました: ' + error.message, 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+        async function downloadHistoricalData() {
+            try {
+                toggleLoading(true);
+                const showEvaluation = document.getElementById('show-evaluation').checked;
+                const url = '/api/data' + (showEvaluation ? '?evaluation=true' : '');
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create JSON data
+                    const jsonData = JSON.stringify(result.draws, null, 2);
+                    
+                    // Create blob and download
+                    const blob = new Blob([jsonData], { type: 'application/json' });
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    
+                    // Generate filename with timestamp
+                    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                    const evalSuffix = showEvaluation ? '_with_evaluation' : '';
+                    link.download = `loto7_data${evalSuffix}_${timestamp}.json`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(downloadUrl);
+                    
+                    showMessage(result.count + '件のデータをダウンロードしました。', 'success');
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('ダウンロードに失敗しました: ' + error.message, 'error');
             } finally {
                 toggleLoading(false);
             }
