@@ -321,9 +321,18 @@
         </div>
         <div id="message-container"></div>
         <div id="loading" class="loading hidden">処理中</div>
+        
+        <div id="history-section" class="hidden">
+            <div class="results-header">
+                <h2>📚 過去の当選結果（参考）</h2>
+                <div class="results-info"><span id="history-count">0件</span></div>
+            </div>
+            <div id="history-container"></div>
+        </div>
+        
         <div id="results-section" class="hidden">
             <div class="results-header">
-                <h2>📋 表示結果</h2>
+                <h2>📋 予測結果</h2>
                 <div class="results-info"><span id="results-count">0件</span></div>
             </div>
             <div id="results-container"></div>
@@ -331,6 +340,7 @@
     </div>
     <script>
         let currentData = null;
+        let historyData = null;
         let messageTimeout = null;
         function switchTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -382,6 +392,15 @@
                     toggleLoading(false);
                     return;
                 }
+                
+                // First, load historical data for reference
+                const historyResponse = await fetch('/api/data?evaluation=false');
+                const historyResult = await historyResponse.json();
+                if (historyResult.success) {
+                    historyData = historyResult.draws.slice(0, 5); // Get last 5 draws
+                }
+                
+                // Then generate predictions
                 const requestBody = { count: numPredictions };
                 if (nextDraw) {
                     requestBody.next_draw_number = nextDraw;
@@ -394,7 +413,7 @@
                 const result = await response.json();
                 if (result.success) {
                     currentData = result.draws;
-                    displayResults();
+                    displayPredictionsWithHistory(historyData, currentData);
                     showMessage(result.message, 'success');
                 } else {
                     showMessage(result.message, 'error');
@@ -601,6 +620,42 @@
             document.getElementById('results-count').textContent = currentData.length + '件';
             toggleResults(true);
         }
+        
+        function displayPredictionsWithHistory(historyData, predictionsData) {
+            // Display history
+            const historyContainer = document.getElementById('history-container');
+            historyContainer.innerHTML = '';
+            if (historyData && historyData.length > 0) {
+                historyData.forEach(function(draw) {
+                    const card = createDrawCard(draw);
+                    historyContainer.appendChild(card);
+                });
+                document.getElementById('history-count').textContent = historyData.length + '件';
+                toggleHistory(true);
+            } else {
+                toggleHistory(false);
+            }
+            
+            // Display predictions
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.innerHTML = '';
+            if (predictionsData && predictionsData.length > 0) {
+                predictionsData.forEach(function(draw) {
+                    const card = createDrawCard(draw);
+                    resultsContainer.appendChild(card);
+                });
+                document.getElementById('results-count').textContent = predictionsData.length + '件';
+                toggleResults(true);
+            } else {
+                toggleResults(false);
+                showMessage('予測データがありません。', 'info');
+            }
+        }
+        
+        function toggleHistory(show) {
+            document.getElementById('history-section').classList.toggle('hidden', !show);
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             loadHistoricalData();
         });
