@@ -28,11 +28,15 @@ class Loto7Draw:
     @staticmethod
     def from_dict(data: dict):
         """Create from dictionary."""
+        # Convert string numbers to integers if needed
+        main = [int(n) for n in data['main']]
+        bonus = [int(n) for n in data['bonus']]
+        
         return Loto7Draw(
             id=data['id'],
             date=data['date'],
-            main=data['main'],
-            bonus=data['bonus'],
+            main=main,
+            bonus=bonus,
             evaluation=data.get('evaluation')
         )
 

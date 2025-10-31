@@ -336,7 +336,10 @@
         <div id="results-section" class="hidden">
             <div class="results-header">
                 <h2>📋 予測結果</h2>
-                <div class="results-info"><span id="results-count">0件</span></div>
+                <div class="results-info">
+                    <span id="results-count">0件</span>
+                    <button class="btn btn-secondary" onclick="downloadPredictions()" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-left: 15px; padding: 8px 16px; font-size: 0.9em;">📥 JSONダウンロード</button>
+                </div>
             </div>
             <div id="results-container"></div>
         </div>
@@ -422,6 +425,36 @@
                 showMessage('ダウンロードに失敗しました: ' + error.message, 'error');
             } finally {
                 toggleLoading(false);
+            }
+        }
+        function downloadPredictions() {
+            if (!currentData || currentData.length === 0) {
+                showMessage('ダウンロードする予測データがありません。', 'error');
+                return;
+            }
+            
+            try {
+                // Create JSON data
+                const jsonData = JSON.stringify(currentData, null, 2);
+                
+                // Create blob and download
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                link.download = `loto7_predictions_${timestamp}.json`;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+                
+                showMessage(currentData.length + '件の予測データをダウンロードしました。', 'success');
+            } catch (error) {
+                showMessage('ダウンロードに失敗しました: ' + error.message, 'error');
             }
         }
         async function generatePredictions() {
