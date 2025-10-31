@@ -231,16 +231,16 @@
                 <button class="btn btn-primary" onclick="loadHistoricalData()">過去の結果を表示</button>
             </div>
             <div id="tab-predict" class="tab-content">
-                <p style="color: #666; margin-bottom: 15px;">統計的分析に基づいて、次回の当選番号を予測します。</p>
+                <p style="color: #666; margin-bottom: 15px;">統計的分析に基づいて、次回の抽選の候補番号を複数個生成します。</p>
                 <div class="form-group">
-                    <label for="num-predictions">予測する組み合わせ数（1-100）</label>
+                    <label for="num-predictions">候補数（1-100）</label>
                     <input type="number" id="num-predictions" value="10" min="1" max="100">
                 </div>
                 <div class="form-group">
-                    <label for="start-draw">開始回数</label>
-                    <input type="number" id="start-draw" value="650" min="1">
+                    <label for="next-draw">次回の回数（自動計算されます）</label>
+                    <input type="number" id="next-draw" value="650" min="1" placeholder="自動">
                 </div>
-                <button class="btn btn-success" onclick="generatePredictions()">予測を生成</button>
+                <button class="btn btn-success" onclick="generatePredictions()">予測候補を生成</button>
             </div>
             <div id="tab-upload" class="tab-content">
                 <p style="color: #666; margin-bottom: 15px;">JSONファイルから抽選データを読み込みます。</p>
@@ -305,16 +305,20 @@
             try {
                 toggleLoading(true);
                 const numPredictions = parseInt(document.getElementById('num-predictions').value);
-                const startDraw = parseInt(document.getElementById('start-draw').value);
+                const nextDraw = parseInt(document.getElementById('next-draw').value) || null;
                 if (numPredictions < 1 || numPredictions > 100) {
-                    showMessage('予測数は1から100の間で指定してください。', 'error');
+                    showMessage('候補数は1から100の間で指定してください。', 'error');
                     toggleLoading(false);
                     return;
+                }
+                const requestBody = { count: numPredictions };
+                if (nextDraw) {
+                    requestBody.next_draw_number = nextDraw;
                 }
                 const response = await fetch('/api/predict', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ count: numPredictions, start_draw_number: startDraw })
+                    body: JSON.stringify(requestBody)
                 });
                 const result = await response.json();
                 if (result.success) {

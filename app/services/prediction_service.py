@@ -105,20 +105,22 @@ class PredictionService:
     def create_predicted_draws(
         self,
         predictions: List[Tuple[int]],
-        start_draw_number: int = 650
+        next_draw_number: int = 650
     ) -> List[Loto7Draw]:
-        """Create Loto7Draw objects from predictions."""
+        """Create Loto7Draw objects from predictions.
+        All predictions are for the same draw number (next draw).
+        """
         draws = []
-        base_date = datetime.now()
+        next_draw_date = (datetime.now() + timedelta(weeks=1)).strftime("%Y-%m-%d")
         
         for i, combo in enumerate(predictions):
-            draw_id = f"第{start_draw_number + i}回"
-            draw_date = (base_date + timedelta(weeks=i)).strftime("%Y-%m-%d")
+            # All predictions are for the next draw, with candidate number
+            draw_id = f"第{next_draw_number}回 候補{i + 1}"
             bonus_numbers = self.generate_bonus_numbers(list(combo))
             
             draw = Loto7Draw(
                 id=draw_id,
-                date=draw_date,
+                date=next_draw_date,
                 main=list(combo),
                 bonus=bonus_numbers
             )

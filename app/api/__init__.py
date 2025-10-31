@@ -31,7 +31,7 @@ def predict():
     try:
         data = request.get_json()
         num_predictions = data.get('count', 10)
-        start_draw_number = data.get('start_draw_number', 650)
+        next_draw_number = data.get('next_draw_number', 650)
         
         # Validate input
         if not isinstance(num_predictions, int) or num_predictions < 1 or num_predictions > 100:
@@ -40,9 +40,20 @@ def predict():
                 'message': '予測数は1から100の間で指定してください。'
             }), 400
         
-        # Get the latest draw for the pull filter
+        # Get the latest draw for the pull filter and determine next draw number
         data_service = DataService(current_app.config['LOTO7_DATA_FILE'])
         latest_draw = data_service.get_latest_draw()
+        
+        # Auto-calculate next draw number if not provided
+        if latest_draw and next_draw_number == 650:
+            # Extract number from draw ID (e.g., "第649回" -> 649)
+            try:
+                import re
+                match = re.search(r'第(\d+)回', latest_draw.id)
+                if match:
+                    next_draw_number = int(match.group(1)) + 1
+            except:
+                pass
         
         # Generate predictions
         prediction_service = PredictionService(latest_draw)
@@ -54,17 +65,18 @@ def predict():
                 'message': '予測の生成に失敗しました。フィルター条件が厳しすぎる可能性があります。'
             }), 400
         
-        # Create draw objects
+        # Create draw objects - all for the same next draw
         predicted_draws = prediction_service.create_predicted_draws(
             predictions,
-            start_draw_number
+            next_draw_number
         )
         
         return jsonify({
             'success': True,
             'draws': [draw.to_dict() for draw in predicted_draws],
             'count': len(predicted_draws),
-            'message': f'{len(predicted_draws)}件の予測を生成しました。'
+            'next_draw_number': next_draw_number,
+            'message': f'第{next_draw_number}回の予測候補を{len(predicted_draws)}件生成しました。'
         })
     
     except Exception as e:
