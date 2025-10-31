@@ -196,11 +196,73 @@
         .legend-color.main { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .legend-color.bonus { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .hidden { display: none; }
+        .evaluation-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        .evaluation-title {
+            font-size: 1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .evaluation-title:hover { color: #667eea; }
+        .evaluation-toggle {
+            font-size: 0.9em;
+            color: #667eea;
+        }
+        .evaluation-content {
+            display: none;
+            margin-top: 10px;
+        }
+        .evaluation-content.show { display: block; }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .filter-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #ddd;
+        }
+        .filter-item.pass { border-left-color: #28a745; }
+        .filter-item.fail { border-left-color: #dc3545; }
+        .filter-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filter-badge {
+            font-size: 0.75em;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+        }
+        .filter-badge.pass { background: #28a745; }
+        .filter-badge.fail { background: #dc3545; }
+        .filter-details {
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.6;
+        }
+        .filter-details strong { color: #333; }
         @media (max-width: 768px) {
             .header h1 { font-size: 1.8em; }
             .numbers-section { min-width: 100%; }
             .number-ball { width: 45px; height: 45px; font-size: 1.1em; }
             .results-header { flex-direction: column; gap: 10px; }
+            .filter-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -417,8 +479,104 @@
             }
             visualBar.appendChild(barContainer);
             card.appendChild(visualBar);
+            
+            // Add evaluation section if available
+            if (draw.evaluation) {
+                const evalSection = createEvaluationSection(draw.evaluation);
+                card.appendChild(evalSection);
+            }
+            
             return card;
         }
+        
+        function createEvaluationSection(evaluation) {
+            const section = document.createElement('div');
+            section.className = 'evaluation-section';
+            
+            const title = document.createElement('div');
+            title.className = 'evaluation-title';
+            title.innerHTML = '<span>📊 フィルタ評価詳細</span><span class="evaluation-toggle">▼ 表示</span>';
+            title.onclick = function() {
+                const content = section.querySelector('.evaluation-content');
+                const toggle = title.querySelector('.evaluation-toggle');
+                content.classList.toggle('show');
+                toggle.textContent = content.classList.contains('show') ? '▲ 非表示' : '▼ 表示';
+            };
+            section.appendChild(title);
+            
+            const content = document.createElement('div');
+            content.className = 'evaluation-content';
+            
+            const filterGrid = document.createElement('div');
+            filterGrid.className = 'filter-grid';
+            
+            // Continuous filter
+            const continuous = createFilterItem('連続番号', evaluation.continuous.pass, 
+                evaluation.continuous.pairs.length > 0 
+                    ? '連続: ' + evaluation.continuous.pairs.join(', ')
+                    : '連続番号あり');
+            filterGrid.appendChild(continuous);
+            
+            // Zone3 filter
+            const zone3Details = Object.entries(evaluation.zone3.distribution)
+                .map(([k, v]) => k + ': ' + v + '個').join(', ');
+            const zone3 = createFilterItem('3ゾーン分布', evaluation.zone3.pass, zone3Details);
+            filterGrid.appendChild(zone3);
+            
+            // Zone4 filter
+            const zone4Details = Object.entries(evaluation.zone4.distribution)
+                .map(([k, v]) => k + ': ' + v + '個').join(', ');
+            const zone4 = createFilterItem('4ゾーン分布', evaluation.zone4.pass, zone4Details);
+            filterGrid.appendChild(zone4);
+            
+            // Odd/Even filter
+            const oddEven = createFilterItem('奇数偶数', evaluation.odd_even.pass,
+                '奇数: ' + evaluation.odd_even.odd + '個, 偶数: ' + evaluation.odd_even.even + '個');
+            filterGrid.appendChild(oddEven);
+            
+            // Sum filter
+            const sum = createFilterItem('合計値', evaluation.sum.pass,
+                '合計: ' + evaluation.sum.total + ' (範囲: ' + evaluation.sum.range + ')');
+            filterGrid.appendChild(sum);
+            
+            // Last digits filter
+            const lastDigitsDetails = Object.entries(evaluation.last_digits.distribution)
+                .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+                .map(([k, v]) => k + '→' + v + '回').join(', ');
+            const lastDigits = createFilterItem('下一桁分布', evaluation.last_digits.pass,
+                lastDigitsDetails + ' (最大: ' + evaluation.last_digits.max_count + '回)');
+            filterGrid.appendChild(lastDigits);
+            
+            // Pull filter
+            const pull = createFilterItem('前回引継', evaluation.pull.pass,
+                '前回との重複: ' + evaluation.pull.count + '個 (許容: ' + evaluation.pull.valid_range + ')');
+            filterGrid.appendChild(pull);
+            
+            content.appendChild(filterGrid);
+            section.appendChild(content);
+            
+            return section;
+        }
+        
+        function createFilterItem(name, pass, details) {
+            const item = document.createElement('div');
+            item.className = 'filter-item ' + (pass ? 'pass' : 'fail');
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'filter-name';
+            nameDiv.innerHTML = name + ' <span class="filter-badge ' + (pass ? 'pass' : 'fail') + '">' 
+                + (pass ? '✓ 合格' : '✗ 不合格') + '</span>';
+            
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'filter-details';
+            detailsDiv.textContent = details;
+            
+            item.appendChild(nameDiv);
+            item.appendChild(detailsDiv);
+            
+            return item;
+        }
+        
         function displayResults() {
             const container = document.getElementById('results-container');
             container.innerHTML = '';
