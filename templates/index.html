@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ロト7 分析・予測システム</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Yu Gothic', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .control-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; }
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:hover { color: #667eea; }
+        .tab.active { color: #667eea; border-bottom-color: #667eea; }
+        .tab-content { display: none; padding: 20px 0; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 600; }
+        .form-group input[type="number"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #1e7e34; }
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .message.error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .message.info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .loading { text-align: center; padding: 40px; color: white; font-size: 1.2em; }
+        .loading::after { content: '...'; animation: dots 1.5s infinite; }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .results-header h2 { font-size: 1.8em; }
+        .results-info {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1.1em;
+        }
+        .draw-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        .draw-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .draw-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .draw-id { font-size: 1.4em; font-weight: bold; color: #333; }
+        .draw-date { color: #666; font-size: 1.1em; }
+        .numbers-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .numbers-section { flex: 1; min-width: 300px; }
+        .numbers-label { font-size: 0.9em; color: #666; margin-bottom: 10px; font-weight: 600; }
+        .numbers-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+        .number-ball {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        .number-ball.main { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .number-ball.bonus { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .visual-bar { margin-top: 20px; padding-top: 20px; border-top: 2px solid #f0f0f0; }
+        .visual-bar-label { font-size: 0.9em; color: #666; margin-bottom: 10px; font-weight: 600; }
+        .bar-container {
+            display: flex;
+            gap: 2px;
+            background: #f5f5f5;
+            padding: 5px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .bar-cell {
+            min-width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            color: #999;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+        }
+        .bar-cell.highlighted {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            border-color: #667eea;
+        }
+        .bar-cell.bonus-highlighted {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            font-weight: bold;
+            border-color: #f5576c;
+        }
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 1.1em; }
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .legend-color.main { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .legend-color.bonus { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .hidden { display: none; }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8em; }
+            .numbers-section { min-width: 100%; }
+            .number-ball { width: 45px; height: 45px; font-size: 1.1em; }
+            .results-header { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎱 ロト7 分析・予測システム</h1>
+            <p>過去の当選結果の表示と番号予測</p>
+        </div>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color main"></div>
+                <span>本数字</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color bonus"></div>
+                <span>ボーナス数字</span>
+            </div>
+        </div>
+        <div class="control-panel">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('history')">📊 過去の結果</button>
+                <button class="tab" onclick="switchTab('predict')">🔮 番号予測</button>
+                <button class="tab" onclick="switchTab('upload')">📁 ファイル読込</button>
+            </div>
+            <div id="tab-history" class="tab-content active">
+                <p style="color: #666; margin-bottom: 15px;">保存されている過去のロト7抽選結果を表示します。</p>
+                <button class="btn btn-primary" onclick="loadHistoricalData()">過去の結果を表示</button>
+            </div>
+            <div id="tab-predict" class="tab-content">
+                <p style="color: #666; margin-bottom: 15px;">統計的分析に基づいて、次回の当選番号を予測します。</p>
+                <div class="form-group">
+                    <label for="num-predictions">予測する組み合わせ数（1-100）</label>
+                    <input type="number" id="num-predictions" value="10" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="start-draw">開始回数</label>
+                    <input type="number" id="start-draw" value="650" min="1">
+                </div>
+                <button class="btn btn-success" onclick="generatePredictions()">予測を生成</button>
+            </div>
+            <div id="tab-upload" class="tab-content">
+                <p style="color: #666; margin-bottom: 15px;">JSONファイルから抽選データを読み込みます。</p>
+                <div class="form-group">
+                    <label for="json-file">JSONファイルを選択</label>
+                    <input type="file" id="json-file" accept=".json">
+                </div>
+                <button class="btn btn-primary" onclick="uploadFile()">ファイルを読み込む</button>
+            </div>
+        </div>
+        <div id="message-container"></div>
+        <div id="loading" class="loading hidden">処理中</div>
+        <div id="results-section" class="hidden">
+            <div class="results-header">
+                <h2>📋 表示結果</h2>
+                <div class="results-info"><span id="results-count">0件</span></div>
+            </div>
+            <div id="results-container"></div>
+        </div>
+    </div>
+    <script>
+        let currentData = null;
+        let messageTimeout = null;
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+        function showMessage(message, type) {
+            type = type || 'success';
+            const container = document.getElementById('message-container');
+            container.innerHTML = '<div class="message ' + type + '">' + message + '</div>';
+            if (messageTimeout) clearTimeout(messageTimeout);
+            messageTimeout = setTimeout(function() { container.innerHTML = ''; }, 5000);
+        }
+        function toggleLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+        }
+        function toggleResults(show) {
+            document.getElementById('results-section').classList.toggle('hidden', !show);
+        }
+        async function loadHistoricalData() {
+            try {
+                toggleLoading(true);
+                const response = await fetch('/api/data');
+                const result = await response.json();
+                if (result.success) {
+                    currentData = result.draws;
+                    displayResults();
+                    showMessage(result.count + '件の過去の抽選結果を読み込みました。', 'success');
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('データの読み込みに失敗しました: ' + error.message, 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+        async function generatePredictions() {
+            try {
+                toggleLoading(true);
+                const numPredictions = parseInt(document.getElementById('num-predictions').value);
+                const startDraw = parseInt(document.getElementById('start-draw').value);
+                if (numPredictions < 1 || numPredictions > 100) {
+                    showMessage('予測数は1から100の間で指定してください。', 'error');
+                    toggleLoading(false);
+                    return;
+                }
+                const response = await fetch('/api/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: numPredictions, start_draw_number: startDraw })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    currentData = result.draws;
+                    displayResults();
+                    showMessage(result.message, 'success');
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('予測の生成に失敗しました: ' + error.message, 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+        async function uploadFile() {
+            try {
+                const fileInput = document.getElementById('json-file');
+                if (!fileInput.files[0]) {
+                    showMessage('ファイルを選択してください。', 'error');
+                    return;
+                }
+                toggleLoading(true);
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    currentData = result.draws;
+                    displayResults();
+                    showMessage(result.message, 'success');
+                    fileInput.value = '';
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('ファイルのアップロードに失敗しました: ' + error.message, 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+        function createDrawCard(draw) {
+            const card = document.createElement('div');
+            card.className = 'draw-card';
+            const header = document.createElement('div');
+            header.className = 'draw-header';
+            header.innerHTML = '<div class="draw-id">' + draw.id + '</div><div class="draw-date">' + draw.date + '</div>';
+            card.appendChild(header);
+            const numbersContainer = document.createElement('div');
+            numbersContainer.className = 'numbers-container';
+            const mainSection = document.createElement('div');
+            mainSection.className = 'numbers-section';
+            mainSection.innerHTML = '<div class="numbers-label">本数字</div>';
+            const mainGrid = document.createElement('div');
+            mainGrid.className = 'numbers-grid';
+            draw.main.forEach(function(num) {
+                const ball = document.createElement('div');
+                ball.className = 'number-ball main';
+                ball.textContent = num;
+                mainGrid.appendChild(ball);
+            });
+            mainSection.appendChild(mainGrid);
+            const bonusSection = document.createElement('div');
+            bonusSection.className = 'numbers-section';
+            bonusSection.innerHTML = '<div class="numbers-label">ボーナス数字</div>';
+            const bonusGrid = document.createElement('div');
+            bonusGrid.className = 'numbers-grid';
+            draw.bonus.forEach(function(num) {
+                const ball = document.createElement('div');
+                ball.className = 'number-ball bonus';
+                ball.textContent = num;
+                bonusGrid.appendChild(ball);
+            });
+            bonusSection.appendChild(bonusGrid);
+            numbersContainer.appendChild(mainSection);
+            numbersContainer.appendChild(bonusSection);
+            card.appendChild(numbersContainer);
+            const visualBar = document.createElement('div');
+            visualBar.className = 'visual-bar';
+            visualBar.innerHTML = '<div class="visual-bar-label">1-37 番号分布</div>';
+            const barContainer = document.createElement('div');
+            barContainer.className = 'bar-container';
+            for (let i = 1; i <= 37; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'bar-cell';
+                cell.textContent = i;
+                if (draw.main.includes(i)) {
+                    cell.classList.add('highlighted');
+                } else if (draw.bonus.includes(i)) {
+                    cell.classList.add('bonus-highlighted');
+                }
+                barContainer.appendChild(cell);
+            }
+            visualBar.appendChild(barContainer);
+            card.appendChild(visualBar);
+            return card;
+        }
+        function displayResults() {
+            const container = document.getElementById('results-container');
+            container.innerHTML = '';
+            if (!currentData || currentData.length === 0) {
+                toggleResults(false);
+                showMessage('表示するデータがありません。', 'info');
+                return;
+            }
+            currentData.forEach(function(draw) {
+                const card = createDrawCard(draw);
+                container.appendChild(card);
+            });
+            document.getElementById('results-count').textContent = currentData.length + '件';
+            toggleResults(true);
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHistoricalData();
+        });
+    </script>
+</body>
+</html>
