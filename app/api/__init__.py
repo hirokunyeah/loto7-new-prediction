@@ -10,13 +10,30 @@ api = Blueprint('api', __name__, url_prefix='/api')
 def get_data():
     """Get historical Loto7 draw data."""
     try:
+        # Check if evaluation is requested
+        include_evaluation = request.args.get('evaluation', 'false').lower() == 'true'
+        
         data_service = DataService(current_app.config['LOTO7_DATA_FILE'])
         draws = data_service.load_draws()
+        
+        # Add evaluation to historical draws if requested
+        if include_evaluation and draws:
+            # Use the second-to-last draw as reference for the last draw's pull filter
+            for i, draw in enumerate(draws):
+                # Get previous draw for pull filter (if exists)
+                previous_draw = draws[i + 1] if i + 1 < len(draws) else None
+                prediction_service = PredictionService(previous_draw)
+                
+                # Evaluate the draw
+                combo = tuple(sorted(draw.main))
+                evaluation = prediction_service.evaluate_combination(combo)
+                draw.evaluation = evaluation
         
         return jsonify({
             'success': True,
             'draws': [draw.to_dict() for draw in draws],
-            'count': len(draws)
+            'count': len(draws),
+            'has_evaluation': include_evaluation
         })
     except Exception as e:
         return jsonify({

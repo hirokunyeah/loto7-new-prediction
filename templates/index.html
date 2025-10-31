@@ -290,6 +290,12 @@
             </div>
             <div id="tab-history" class="tab-content active">
                 <p style="color: #666; margin-bottom: 15px;">保存されている過去のロト7抽選結果を表示します。</p>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="show-evaluation" style="width: auto; cursor: pointer;">
+                        <span>フィルタ評価を表示する</span>
+                    </label>
+                </div>
                 <button class="btn btn-primary" onclick="loadHistoricalData()">過去の結果を表示</button>
             </div>
             <div id="tab-predict" class="tab-content">
@@ -348,12 +354,15 @@
         async function loadHistoricalData() {
             try {
                 toggleLoading(true);
-                const response = await fetch('/api/data');
+                const showEvaluation = document.getElementById('show-evaluation').checked;
+                const url = '/api/data' + (showEvaluation ? '?evaluation=true' : '');
+                const response = await fetch(url);
                 const result = await response.json();
                 if (result.success) {
                     currentData = result.draws;
                     displayResults();
-                    showMessage(result.count + '件の過去の抽選結果を読み込みました。', 'success');
+                    const evalMsg = showEvaluation ? '（評価付き）' : '';
+                    showMessage(result.count + '件の過去の抽選結果を読み込みました。' + evalMsg, 'success');
                 } else {
                     showMessage(result.message, 'error');
                 }
