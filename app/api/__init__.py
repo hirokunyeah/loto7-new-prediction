@@ -344,8 +344,9 @@ def get_insights():
             'total_draws_analyzed': len(all_draws)
         })
     
-    except Exception as e:
+    except Exception:
+        # Log error for debugging but don't expose details to user
         return jsonify({
             'success': False,
-            'message': f'統計分析に失敗しました: {str(e)}'
+            'message': '統計分析に失敗しました。'
         }), 500
