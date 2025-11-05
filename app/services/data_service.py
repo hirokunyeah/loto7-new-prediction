@@ -55,3 +55,22 @@ class DataService:
             draws.append(draw)
         
         return draws
+    
+    def add_draw(self, new_draw: Loto7Draw) -> bool:
+        """Add a new draw to the data file."""
+        # Validate the new draw
+        if not new_draw.validate():
+            raise ValueError(f'Invalid draw data: {new_draw.id}')
+        
+        # Load existing draws
+        draws = self.load_draws()
+        
+        # Check for duplicate draw ID
+        if any(draw.id == new_draw.id for draw in draws):
+            raise ValueError(f'Draw with ID {new_draw.id} already exists.')
+        
+        # Add new draw at the beginning (most recent)
+        draws.insert(0, new_draw)
+        
+        # Save updated draws
+        return self.save_draws(draws)

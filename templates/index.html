@@ -286,6 +286,7 @@
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('history')">📊 過去の結果</button>
                 <button class="tab" onclick="switchTab('predict')">🔮 番号予測</button>
+                <button class="tab" onclick="switchTab('add')">➕ 新規追加</button>
                 <button class="tab" onclick="switchTab('upload')">📁 ファイル読込</button>
             </div>
             <div id="tab-history" class="tab-content active">
@@ -312,6 +313,37 @@
                     <input type="number" id="next-draw" value="650" min="1" placeholder="自動">
                 </div>
                 <button class="btn btn-success" onclick="generatePredictions()">予測候補を生成</button>
+            </div>
+            <div id="tab-add" class="tab-content">
+                <p style="color: #666; margin-bottom: 15px;">新しい抽選結果を手動で追加します。</p>
+                <div class="form-group">
+                    <label for="new-draw-id">回数（例: 第651回）</label>
+                    <input type="text" id="new-draw-id" placeholder="第651回" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                </div>
+                <div class="form-group">
+                    <label for="new-draw-date">抽選日（YYYY-MM-DD）</label>
+                    <input type="date" id="new-draw-date" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                </div>
+                <div class="form-group">
+                    <label>本数字（7個、1-37の範囲）</label>
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+                        <input type="number" id="main-1" min="1" max="37" placeholder="1" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-2" min="1" max="37" placeholder="2" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-3" min="1" max="37" placeholder="3" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-4" min="1" max="37" placeholder="4" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-5" min="1" max="37" placeholder="5" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-6" min="1" max="37" placeholder="6" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="main-7" min="1" max="37" placeholder="7" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ボーナス数字（2個、1-37の範囲）</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 300px;">
+                        <input type="number" id="bonus-1" min="1" max="37" placeholder="1" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                        <input type="number" id="bonus-2" min="1" max="37" placeholder="2" style="padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center;">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addNewDraw()">抽選結果を追加</button>
             </div>
             <div id="tab-upload" class="tab-content">
                 <p style="color: #666; margin-bottom: 15px;">JSONファイルから抽選データを読み込みます。</p>
@@ -525,6 +557,99 @@
                 }
             } catch (error) {
                 showMessage('ファイルのアップロードに失敗しました: ' + error.message, 'error');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+        async function addNewDraw() {
+            try {
+                toggleLoading(true);
+                
+                // Collect form data
+                const drawId = document.getElementById('new-draw-id').value.trim();
+                const drawDate = document.getElementById('new-draw-date').value;
+                
+                // Collect main numbers
+                const mainNumbers = [];
+                for (let i = 1; i <= 7; i++) {
+                    const num = parseInt(document.getElementById('main-' + i).value);
+                    if (!num || num < 1 || num > 37) {
+                        showMessage('本数字は1から37の範囲で7個すべて入力してください。', 'error');
+                        toggleLoading(false);
+                        return;
+                    }
+                    mainNumbers.push(num);
+                }
+                
+                // Collect bonus numbers
+                const bonusNumbers = [];
+                for (let i = 1; i <= 2; i++) {
+                    const num = parseInt(document.getElementById('bonus-' + i).value);
+                    if (!num || num < 1 || num > 37) {
+                        showMessage('ボーナス数字は1から37の範囲で2個すべて入力してください。', 'error');
+                        toggleLoading(false);
+                        return;
+                    }
+                    bonusNumbers.push(num);
+                }
+                
+                // Validate draw ID and date
+                if (!drawId) {
+                    showMessage('回数を入力してください。', 'error');
+                    toggleLoading(false);
+                    return;
+                }
+                if (!drawDate) {
+                    showMessage('抽選日を入力してください。', 'error');
+                    toggleLoading(false);
+                    return;
+                }
+                
+                // Check for duplicate numbers
+                const allNumbers = [...mainNumbers, ...bonusNumbers];
+                if (new Set(allNumbers).size !== allNumbers.length) {
+                    showMessage('本数字とボーナス数字に重複があります。すべて異なる数字を入力してください。', 'error');
+                    toggleLoading(false);
+                    return;
+                }
+                
+                // Prepare request data
+                const requestData = {
+                    id: drawId,
+                    date: drawDate,
+                    main: mainNumbers.sort((a, b) => a - b),
+                    bonus: bonusNumbers.sort((a, b) => a - b)
+                };
+                
+                // Send request to add draw
+                const response = await fetch('/api/add-draw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    
+                    // Clear form
+                    document.getElementById('new-draw-id').value = '';
+                    document.getElementById('new-draw-date').value = '';
+                    for (let i = 1; i <= 7; i++) {
+                        document.getElementById('main-' + i).value = '';
+                    }
+                    for (let i = 1; i <= 2; i++) {
+                        document.getElementById('bonus-' + i).value = '';
+                    }
+                    
+                    // Optionally reload the historical data
+                    // await loadHistoricalData();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('抽選結果の追加に失敗しました: ' + error.message, 'error');
             } finally {
                 toggleLoading(false);
             }
