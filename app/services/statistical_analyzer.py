@@ -4,6 +4,13 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# Scoring constants
+OVERDUE_SCORE_MULTIPLIER = 50
+HOT_NUMBER_TARGET_PERCENTAGE = 40
+BALANCED_NUMBER_WEIGHT = 0.4
+OVERDUE_NUMBER_TARGET_PERCENTAGE = 20
+NEUTRAL_FREQUENCY_SCORE = 50.0
+
 
 @dataclass
 class FilterConfig:
@@ -99,7 +106,7 @@ class StatisticalAnalyzer:
                 if stats.last_appearance is not None:
                     expected_gap = total_draws / (stats.frequency if stats.frequency > 0 else 1)
                     actual_gap = stats.last_appearance
-                    stats.overdue_score = min(100, (actual_gap / expected_gap * 50)) if expected_gap > 0 else 0
+                    stats.overdue_score = min(100, (actual_gap / expected_gap * OVERDUE_SCORE_MULTIPLIER)) if expected_gap > 0 else 0
                 else:
                     stats.overdue_score = 100  # Never appeared
     
@@ -192,18 +199,18 @@ class StatisticalAnalyzer:
     def _calculate_frequency_score(self, combo: Tuple[int, ...]) -> float:
         """Calculate frequency-based score for a combination."""
         if not self.historical_stats:
-            return 50.0  # Neutral score
+            return NEUTRAL_FREQUENCY_SCORE  # Neutral score
         
         # Balance hot, cold, and overdue numbers
         hot_avg = sum(self.historical_stats[n].hot_score for n in combo) / 7
         cold_avg = sum(self.historical_stats[n].cold_score for n in combo) / 7
         overdue_avg = sum(self.historical_stats[n].overdue_score for n in combo) / 7
         
-        # Optimal balance: mix of hot (40%), balanced (40%), and overdue (20%)
+        # Optimal balance: mix of hot, balanced, and overdue numbers
         balance_score = (
-            min(hot_avg / 40, 1.0) * 40 +
-            (100 - abs(50 - cold_avg)) * 0.4 +
-            min(overdue_avg / 20, 1.0) * 20
+            min(hot_avg / HOT_NUMBER_TARGET_PERCENTAGE, 1.0) * HOT_NUMBER_TARGET_PERCENTAGE +
+            (100 - abs(NEUTRAL_FREQUENCY_SCORE - cold_avg)) * BALANCED_NUMBER_WEIGHT +
+            min(overdue_avg / OVERDUE_NUMBER_TARGET_PERCENTAGE, 1.0) * OVERDUE_NUMBER_TARGET_PERCENTAGE
         )
         
         return min(100.0, balance_score)

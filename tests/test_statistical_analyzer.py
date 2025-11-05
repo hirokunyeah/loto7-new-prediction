@@ -1,5 +1,6 @@
 """Tests for StatisticalAnalyzer."""
 import pytest
+
 from app.services.statistical_analyzer import StatisticalAnalyzer, FilterConfig, StatisticalMetrics
 from app.models import Loto7Draw
 
@@ -82,14 +83,19 @@ class TestStatisticalAnalyzer:
         analyzer.analyze_historical_data(draws)
         
         # Check that stats were initialized for all numbers
-        assert len(analyzer.historical_stats) == 37
+        expected_total_numbers = 37
+        assert len(analyzer.historical_stats) == expected_total_numbers
         assert 1 in analyzer.historical_stats
         assert 37 in analyzer.historical_stats
         
         # Check frequency tracking
-        assert analyzer.historical_stats[35].frequency == 3  # Appears 3 times
-        assert analyzer.historical_stats[33].frequency == 2  # Appears 2 times
-        assert analyzer.historical_stats[1].frequency == 1   # Appears 1 time
+        expected_freq_35 = 3  # Number 35 appears 3 times
+        expected_freq_33 = 2  # Number 33 appears 2 times
+        expected_freq_1 = 1   # Number 1 appears 1 time
+        
+        assert analyzer.historical_stats[35].frequency == expected_freq_35
+        assert analyzer.historical_stats[33].frequency == expected_freq_33
+        assert analyzer.historical_stats[1].frequency == expected_freq_1
     
     def test_analyze_historical_data_with_dict(self):
         """Test historical data analysis with dict format."""
