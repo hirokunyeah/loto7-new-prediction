@@ -203,3 +203,65 @@ def get_stats():
             'success': False,
             'message': f'統計の取得に失敗しました: {str(e)}'
         }), 500
+
+
+@api.route('/add-draw', methods=['POST'])
+def add_draw():
+    """Add a new lottery draw to the historical data."""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['id', 'date', 'main', 'bonus']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'必須フィールド "{field}" が見つかりません。'
+                }), 400
+        
+        # Create Loto7Draw object from the data
+        from app.models import Loto7Draw
+        try:
+            new_draw = Loto7Draw.from_dict(data)
+        except (KeyError, ValueError):
+            return jsonify({
+                'success': False,
+                'message': 'データの形式が正しくありません。'
+            }), 400
+        
+        # Add the new draw using DataService
+        data_service = DataService(current_app.config['LOTO7_DATA_FILE'])
+        try:
+            success = data_service.add_draw(new_draw)
+            if success:
+                return jsonify({
+                    'success': True,
+                    'draw': new_draw.to_dict(),
+                    'message': f'{new_draw.id} のデータを追加しました。'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'データの保存に失敗しました。'
+                }), 500
+        except ValueError as e:
+            # Map controlled error messages to user-friendly Japanese messages
+            error_msg = str(e)
+            if error_msg == 'Duplicate draw ID':
+                user_message = 'この回数は既に登録されています。'
+            elif error_msg == 'Invalid draw data':
+                user_message = '抽選データが無効です。番号が正しいか確認してください。'
+            else:
+                user_message = 'データの検証に失敗しました。'
+            
+            return jsonify({
+                'success': False,
+                'message': user_message
+            }), 400
+    
+    except Exception:
+        return jsonify({
+            'success': False,
+            'message': 'データの追加に失敗しました。'
+        }), 500
