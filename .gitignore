@@ -53,5 +53,12 @@ Thumbs.db
 .env
 .env.local
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
 # Archive
 archive/

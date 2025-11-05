@@ -39,6 +39,8 @@ loto7/
 ├── server.py              # アプリケーションエントリーポイント
 ├── config.py              # アプリケーション設定
 ├── requirements.txt       # Python依存パッケージ
+├── pytest.ini             # pytest設定ファイル
+├── conftest.py            # pytest共通フィクスチャ
 ├── app/                   # メインアプリケーションパッケージ
 │   ├── __init__.py       # Flaskアプリケーションファクトリ
 │   ├── models.py         # データモデル（Loto7Draw）
@@ -50,6 +52,12 @@ loto7/
 │       ├── __init__.py
 │       ├── data_service.py        # データ操作サービス
 │       └── prediction_service.py  # 予測ロジックサービス
+├── tests/                # テストスイート
+│   ├── __init__.py
+│   ├── test_models.py           # データモデルのテスト
+│   ├── test_data_service.py     # データサービスのテスト
+│   ├── test_prediction_service.py # 予測サービスのテスト（7フィルタ重点）
+│   └── test_api.py              # APIエンドポイントのテスト
 ├── templates/            # HTMLテンプレート
 │   └── index.html       # メインページ
 ├── static/              # 静的ファイル
@@ -73,6 +81,30 @@ python server.py
 ```
 
 サーバーは `http://0.0.0.0:5000` で起動します。
+
+### 3. テストの実行
+
+```bash
+# 全てのテストを実行
+pytest
+
+# カバレッジレポート付きで実行
+pytest --cov=app --cov-report=html
+
+# ユニットテストのみ実行
+pytest -m unit
+
+# APIテストのみ実行
+pytest -m api
+
+# 統合テストのみ実行
+pytest -m integration
+
+# 詳細な出力で実行
+pytest -v
+```
+
+HTMLカバレッジレポートは `htmlcov/index.html` で確認できます。
 
 ## API エンドポイント
 
@@ -279,9 +311,41 @@ app = create_app('production')
 - **フロントエンド**: HTML5, CSS3, JavaScript (Vanilla)
 - **データ形式**: JSON
 - **Python**: 3.12+
+- **テストフレームワーク**: pytest 7.4.3, pytest-flask 1.3.0
+- **カバレッジツール**: pytest-cov 4.1.0
 - **アーキテクチャ**: Application Factory パターン, Blueprint, サービス層分離
 
+## テスト戦略
+
+### テストアプローチ
+1. **一時JSONファイル作成**: `tempfile`を使用した実ファイルベースのテスト
+2. **完全モック**: `unittest.mock`によるファイルI/Oの完全モック化
+3. **重要機能重点テスト**: 7つのフィルタロジックと主要APIエンドポイントに集中
+
+### テストカバレッジ
+- **全体カバレッジ**: 94%
+- **総テストケース数**: 95件
+  - データモデル（Loto7Draw）: 11件
+  - データサービス: 19件
+  - 予測サービス（7フィルタ含む）: 39件
+  - APIエンドポイント: 24件
+  - 統合テスト: 2件
+
+### テストマーカー
+- `@pytest.mark.unit`: ユニットテスト（69件）
+- `@pytest.mark.api`: APIエンドポイントテスト（24件）
+- `@pytest.mark.integration`: 統合テスト（2件）
+
 ## 変更履歴
+
+### v2.1.0 (2025-11-05)
+- ✅ 包括的なunitテストスイートを追加（95テストケース）
+- ✅ pytest、pytest-flask、pytest-covを導入
+- ✅ 94%のコードカバレッジを達成
+- ✅ 7つのフィルタロジックの詳細なテスト
+- ✅ API エンドポイントの完全なテストカバレッジ
+- ✅ 一時ファイルとモックを使用したテスト戦略
+- ✅ HTMLカバレッジレポート生成機能
 
 ### v2.0.0 (2025-10-31)
 - ✨ フィルタ評価表示機能を追加
