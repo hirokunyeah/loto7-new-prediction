@@ -224,10 +224,10 @@ def add_draw():
         from app.models import Loto7Draw
         try:
             new_draw = Loto7Draw.from_dict(data)
-        except (KeyError, ValueError) as e:
+        except (KeyError, ValueError):
             return jsonify({
                 'success': False,
-                'message': f'データの形式が正しくありません: {str(e)}'
+                'message': 'データの形式が正しくありません。'
             }), 400
         
         # Add the new draw using DataService
@@ -246,13 +246,22 @@ def add_draw():
                     'message': 'データの保存に失敗しました。'
                 }), 500
         except ValueError as e:
+            # Map controlled error messages to user-friendly Japanese messages
+            error_msg = str(e)
+            if error_msg == 'Duplicate draw ID':
+                user_message = 'この回数は既に登録されています。'
+            elif error_msg == 'Invalid draw data':
+                user_message = '抽選データが無効です。番号が正しいか確認してください。'
+            else:
+                user_message = 'データの検証に失敗しました。'
+            
             return jsonify({
                 'success': False,
-                'message': str(e)
+                'message': user_message
             }), 400
     
-    except Exception as e:
+    except Exception:
         return jsonify({
             'success': False,
-            'message': f'データの追加に失敗しました: {str(e)}'
+            'message': 'データの追加に失敗しました。'
         }), 500

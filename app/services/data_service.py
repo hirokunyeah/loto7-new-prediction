@@ -60,14 +60,14 @@ class DataService:
         """Add a new draw to the data file."""
         # Validate the new draw
         if not new_draw.validate():
-            raise ValueError(f'Invalid draw data: {new_draw.id}')
+            raise ValueError('Invalid draw data')
         
         # Load existing draws
         draws = self.load_draws()
         
         # Check for duplicate draw ID
         if any(draw.id == new_draw.id for draw in draws):
-            raise ValueError(f'Draw with ID {new_draw.id} already exists.')
+            raise ValueError('Duplicate draw ID')
         
         # Add new draw at the beginning (most recent)
         draws.insert(0, new_draw)
