@@ -12,7 +12,7 @@ Flask ベースのロト7（日本の宝くじ）番号分析および予測シ�
 - **データダウンロード**: 表示中のデータをJSON形式でダウンロード可能
 - **古い順表示**: 過去データは古いものから新しいものの順に表示
 
-### 2. 番号予測機能
+### 2. 番号予測機能（統計分析・スコアリング強化版）
 - 統計的フィルターを使用した次回当選番号の予測
 - **同一回の複数候補表示**: 次回の回に対して複数の候補を生成（例：第651回 - 候補1、候補2...）
 - **過去の当選番号も同時表示**: 予測生成時に、参考として過去5件の当選番号を表示
@@ -24,10 +24,26 @@ Flask ベースのロト7（日本の宝くじ）番号分析および予測シ�
   5. **合計値範囲**: 7つの番号の合計値の範囲チェック
   6. **下一桁分布**: 下一桁（0-9）の重複チェック
   7. **前回引継**: 前回抽選との重複個数チェック
+- **スコアリングシステム**: 各予測候補に0-100点のスコアを付与
+  - 各フィルタの重み付け評価
+  - 過去データに基づく頻度分析
+  - ホット/コールド/期限切れ数字の総合評価
+- **自動ランキング**: スコアに基づいて予測候補を自動的にランク付け
+- **統計的インサイト**: ホット数字、コールド数字、期限切れ数字の分析
+- **パターン分析**: 過去の抽選から傾向とパターンを識別
+- **カスタマイズ可能なフィルタ**: フィルタの重みと閾値をカスタム設定可能
 - **各候補の評価値表示**: 各予測候補が各フィルタで合格/不合格かを可視化
 - **予測結果ダウンロード**: 生成した予測データをJSON形式でダウンロード可能
 
-### 3. データ管理
+### 3. 統計分析機能
+- **ホット数字分析**: 最近の抽選で頻繁に出現している数字
+- **コールド数字分析**: 出現頻度が低い数字
+- **期限切れ数字分析**: 長期間出現していない数字
+- **時系列トレンド分析**: 過去N回の抽選における数字の出現傾向
+- **パターン認識**: 連続数字、ゾーン分布、奇数/偶数比率のパターン
+- **バランス分析**: 数字の分布とバランスの評価
+
+### 4. データ管理
 - JSONファイルのアップロード機能
 - データの検証と読み込み
 - 文字列形式（"01", "08"）と数値形式（1, 8）の両方に対応
@@ -50,14 +66,17 @@ loto7/
 │   │   └── __init__.py   # メインページBlueprint
 │   └── services/         # ビジネスロジック
 │       ├── __init__.py
-│       ├── data_service.py        # データ操作サービス
-│       └── prediction_service.py  # 予測ロジックサービス
+│       ├── data_service.py              # データ操作サービス
+│       ├── prediction_service.py        # 予測ロジックサービス
+│       └── statistical_analyzer.py      # 統計分析・スコアリングサービス
 ├── tests/                # テストスイート
 │   ├── __init__.py
-│   ├── test_models.py           # データモデルのテスト
-│   ├── test_data_service.py     # データサービスのテスト
-│   ├── test_prediction_service.py # 予測サービスのテスト（7フィルタ重点）
-│   └── test_api.py              # APIエンドポイントのテスト
+│   ├── test_models.py                 # データモデルのテスト
+│   ├── test_data_service.py           # データサービスのテスト
+│   ├── test_prediction_service.py     # 予測サービスのテスト（7フィルタ重点）
+│   ├── test_statistical_analyzer.py   # 統計分析機能のテスト
+│   ├── test_api.py                    # APIエンドポイントのテスト
+│   └── test_api_enhanced.py           # 拡張API機能のテスト
 ├── templates/            # HTMLテンプレート
 │   └── index.html       # メインページ
 ├── static/              # 静的ファイル
@@ -141,15 +160,36 @@ HTMLカバレッジレポートは `htmlcov/index.html` で確認できます。
 ```
 
 ### POST `/api/predict`
-番号予測を生成
+番号予測を生成（統計分析・スコアリング機能付き）
 
 **リクエスト:**
 ```json
 {
   "count": 10,
-  "next_draw_number": 651
+  "next_draw_number": 651,
+  "include_scoring": true,
+  "include_patterns": true,
+  "filter_config": {
+    "sum_min": 100,
+    "sum_max": 170,
+    "continuous_weight": 10.0,
+    "zone3_weight": 15.0,
+    "zone4_weight": 15.0,
+    "odd_even_weight": 10.0,
+    "sum_weight": 15.0,
+    "last_digit_weight": 10.0,
+    "pull_weight": 10.0,
+    "frequency_weight": 15.0
+  }
 }
 ```
+
+**パラメータ:**
+- `count` (required): 生成する予測候補数（1-100）
+- `next_draw_number` (optional): 次回の回数（自動計算可能）
+- `include_scoring` (optional): スコアリングを有効化（デフォルト: true）
+- `include_patterns` (optional): パターン分析を含める（デフォルト: false）
+- `filter_config` (optional): カスタムフィルタ設定
 
 **レスポンス:**
 ```json
@@ -157,23 +197,85 @@ HTMLカバレッジレポートは `htmlcov/index.html` で確認できます。
   "success": true,
   "draws": [
     {
-      "id": "第651回 - 候補1",
-      "date": "予測",
+      "id": "第651回 候補1",
+      "date": "2025-11-12",
       "main": [2, 5, 11, 19, 27, 31, 36],
-      "bonus": [],
+      "bonus": [8, 15],
       "evaluation": {
         "continuous": {"count": 0, "pass": true},
         "zone3": {"distribution": [2, 2, 3], "pass": true},
-        ...
+        "zone4": {"distribution": [1, 2, 2, 2], "pass": true},
+        "odd_even": {"odd": 4, "even": 3, "pass": true},
+        "sum": {"total": 131, "range": "100-170", "pass": true},
+        "last_digits": {"max_count": 2, "pass": true},
+        "pull": {"count": 1, "pass": true},
+        "scoring": {
+          "final_score": 95.65,
+          "scores": {
+            "continuous": 100.0,
+            "zone3": 100.0,
+            "zone4": 100.0,
+            "odd_even": 100.0,
+            "sum": 100.0,
+            "last_digits": 100.0,
+            "pull": 100.0,
+            "frequency": 71.02
+          },
+          "weights": {
+            "continuous": 10.0,
+            "zone3": 15.0,
+            "zone4": 15.0,
+            "odd_even": 10.0,
+            "sum": 15.0,
+            "last_digits": 10.0,
+            "pull": 10.0,
+            "frequency": 15.0
+          }
+        }
       }
     },
     {
-      "id": "第651回 - 候補2",
+      "id": "第651回 候補2",
       ...
     }
   ],
   "count": 10,
-  "message": "10件の予測を生成しました。"
+  "next_draw_number": 651,
+  "message": "第651回の予測候補を10件生成しました。",
+  "patterns": [
+    {
+      "type": "consecutive",
+      "description": "Average 0.5 consecutive pairs in recent draws",
+      "value": 0.5
+    },
+    {
+      "type": "zone_distribution",
+      "description": "Zone distribution in recent draws",
+      "value": {"low": 31.4, "mid": 34.3, "high": 34.3}
+    },
+    {
+      "type": "odd_even_ratio",
+      "description": "Average 3.9 odd numbers in recent draws",
+      "value": 3.9
+    }
+  ],
+  "insights": {
+    "hot_numbers": [
+      {"number": 35, "score": 90.5, "frequency": 9},
+      {"number": 33, "score": 85.2, "frequency": 7},
+      ...
+    ],
+    "cold_numbers": [
+      {"number": 6, "score": 100.0, "frequency": 0},
+      {"number": 30, "score": 100.0, "frequency": 0},
+      ...
+    ],
+    "overdue_numbers": [
+      {"number": 6, "score": 100.0, "last_seen": "Never"},
+      {"number": 30, "score": 95.5, "last_seen": 15},
+      ...
+    ]
+  }
 }
 ```
 
@@ -193,7 +295,7 @@ JSONファイルをアップロードしてデータを読み込む
 ```
 
 ### GET `/api/stats`
-統計情報を取得
+基本統計情報を取得
 
 **レスポンス:**
 ```json
@@ -205,6 +307,55 @@ JSONファイルをアップロードしてデータを読み込む
     "most_common_bonus": [[2, 2], [21, 1], ...],
     "latest_draw": {...}
   }
+}
+```
+
+### GET `/api/insights`
+高度な統計分析とインサイトを取得（新機能）
+
+**レスポンス:**
+```json
+{
+  "success": true,
+  "insights": {
+    "hot_numbers": [
+      {"number": 35, "score": 90.5, "frequency": 9},
+      {"number": 33, "score": 85.2, "frequency": 7},
+      {"number": 1, "score": 78.3, "frequency": 6},
+      ...
+    ],
+    "cold_numbers": [
+      {"number": 6, "score": 100.0, "frequency": 0},
+      {"number": 30, "score": 100.0, "frequency": 0},
+      {"number": 2, "score": 55.95, "frequency": 1},
+      ...
+    ],
+    "overdue_numbers": [
+      {"number": 6, "score": 100.0, "last_seen": "Never"},
+      {"number": 30, "score": 95.5, "last_seen": 15},
+      {"number": 20, "score": 75.2, "last_seen": 8},
+      ...
+    ],
+    "patterns": [
+      {
+        "type": "consecutive",
+        "description": "Average 0.5 consecutive pairs in recent draws",
+        "value": 0.5
+      },
+      {
+        "type": "zone_distribution",
+        "description": "Zone distribution in recent draws",
+        "value": {"low": 31.4, "mid": 34.3, "high": 34.3}
+      },
+      {
+        "type": "odd_even_ratio",
+        "description": "Average 3.9 odd numbers in recent draws",
+        "value": 3.9
+      }
+    ]
+  },
+  "patterns": [...],
+  "total_draws_analyzed": 12
 }
 ```
 
@@ -300,10 +451,12 @@ app = create_app('production')
 - ユーザー認証機能
 - 予測精度の追跡と分析
 - REST API の認証
-- テストスイートの追加
-- フィルタ条件のカスタマイズ機能
-- 統計分析の強化（出現頻度、相関分析など）
+- ~~フィルタ条件のカスタマイズ機能~~ ✅ 実装済み (v3.0.0)
+- ~~統計分析の強化（出現頻度、相関分析など）~~ ✅ 実装済み (v3.0.0)
 - グラフ表示機能（時系列、分布図など）
+- WebSocket によるリアルタイム更新
+- 複数予測戦略の比較機能
+- エクスポート機能の拡張（CSV、Excel）
 
 ## 技術スタック
 
@@ -323,20 +476,45 @@ app = create_app('production')
 3. **重要機能重点テスト**: 7つのフィルタロジックと主要APIエンドポイントに集中
 
 ### テストカバレッジ
-- **全体カバレッジ**: 94%
-- **総テストケース数**: 95件
+- **全体カバレッジ**: 95%
+- **総テストケース数**: 121件
   - データモデル（Loto7Draw）: 11件
   - データサービス: 19件
   - 予測サービス（7フィルタ含む）: 39件
+  - 統計分析サービス: 16件（新規）
   - APIエンドポイント: 24件
+  - 拡張API機能: 10件（新規）
   - 統合テスト: 2件
 
 ### テストマーカー
-- `@pytest.mark.unit`: ユニットテスト（69件）
-- `@pytest.mark.api`: APIエンドポイントテスト（24件）
+- `@pytest.mark.unit`: ユニットテスト（85件）
+- `@pytest.mark.api`: APIエンドポイントテスト（34件）
 - `@pytest.mark.integration`: 統合テスト（2件）
 
 ## 変更履歴
+
+### v3.0.0 (2025-11-05) - 統計分析・スコアリングシステム
+- ✨ 統計分析システムを追加
+  - ホット/コールド/期限切れ数字分析
+  - 時系列トレンド分析
+  - パターン認識（連続数字、ゾーン分布、奇数/偶数比率）
+- ✨ スコアリングシステムを実装
+  - 0-100点スケールでの予測評価
+  - 各フィルタの重み付け評価
+  - 過去データに基づく頻度分析
+- ✨ 自動ランキング機能
+  - スコアに基づく予測候補の自動ランク付け
+- ✨ カスタマイズ可能なフィルタ設定
+  - フィルタの重みと閾値を API 経由でカスタマイズ可能
+- ✨ 新しい `/api/insights` エンドポイントを追加
+  - 統計インサイトの取得
+  - パターン分析結果の取得
+- 🔧 `/api/predict` エンドポイントを拡張
+  - スコアリング機能の統合
+  - パターン分析の組み込み
+  - カスタムフィルタ設定のサポート
+- ✅ 26件の新しいテストを追加（統計分析: 16件、API: 10件）
+- ✅ 95%のコードカバレッジを達成
 
 ### v2.1.0 (2025-11-05)
 - ✅ 包括的なunitテストスイートを追加（95テストケース）

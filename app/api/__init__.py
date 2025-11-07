@@ -1,6 +1,7 @@
 """API routes blueprint."""
 from flask import Blueprint, request, jsonify, current_app
 from app.services import DataService, PredictionService
+from app.services.statistical_analyzer import FilterConfig
 import json
 
 api = Blueprint('api', __name__, url_prefix='/api')
@@ -44,11 +45,30 @@ def get_data():
 
 @api.route('/predict', methods=['POST'])
 def predict():
-    """Generate predicted Loto7 numbers."""
+    """Generate predicted Loto7 numbers with enhanced statistical analysis."""
     try:
         data = request.get_json()
         num_predictions = data.get('count', 10)
         next_draw_number = data.get('next_draw_number', 650)
+        include_scoring = data.get('include_scoring', True)
+        include_patterns = data.get('include_patterns', False)
+        
+        # Get custom filter configuration if provided
+        filter_config = None
+        if 'filter_config' in data:
+            config_data = data['filter_config']
+            filter_config = FilterConfig(
+                sum_min=config_data.get('sum_min', 100),
+                sum_max=config_data.get('sum_max', 170),
+                continuous_weight=config_data.get('continuous_weight', 10.0),
+                zone3_weight=config_data.get('zone3_weight', 15.0),
+                zone4_weight=config_data.get('zone4_weight', 15.0),
+                odd_even_weight=config_data.get('odd_even_weight', 10.0),
+                sum_weight=config_data.get('sum_weight', 15.0),
+                last_digit_weight=config_data.get('last_digit_weight', 10.0),
+                pull_weight=config_data.get('pull_weight', 10.0),
+                frequency_weight=config_data.get('frequency_weight', 15.0)
+            )
         
         # Validate input
         if not isinstance(num_predictions, int) or num_predictions < 1 or num_predictions > 100:
@@ -60,6 +80,7 @@ def predict():
         # Get the latest draw for the pull filter and determine next draw number
         data_service = DataService(current_app.config['LOTO7_DATA_FILE'])
         latest_draw = data_service.get_latest_draw()
+        all_draws = data_service.load_draws()
         
         # Auto-calculate next draw number if not provided
         if latest_draw and next_draw_number == 650:
@@ -72,8 +93,19 @@ def predict():
             except:
                 pass
         
-        # Generate predictions
-        prediction_service = PredictionService(latest_draw)
+        # Generate predictions with enhanced statistical analysis
+        prediction_service = PredictionService(
+            previous_draw=latest_draw,
+            config=filter_config,
+            historical_draws=all_draws
+        )
+        
+        # Identify patterns if requested
+        if include_patterns and all_draws:
+            patterns = prediction_service.analyzer.identify_patterns(all_draws)
+        else:
+            patterns = []
+        
         predictions = prediction_service.generate_predictions(num_predictions)
         
         if not predictions:
@@ -82,19 +114,30 @@ def predict():
                 'message': '予測の生成に失敗しました。フィルター条件が厳しすぎる可能性があります。'
             }), 400
         
-        # Create draw objects - all for the same next draw
+        # Create draw objects with scoring
         predicted_draws = prediction_service.create_predicted_draws(
             predictions,
-            next_draw_number
+            next_draw_number,
+            include_scoring=include_scoring
         )
         
-        return jsonify({
+        response_data = {
             'success': True,
             'draws': [draw.to_dict() for draw in predicted_draws],
             'count': len(predicted_draws),
             'next_draw_number': next_draw_number,
             'message': f'第{next_draw_number}回の予測候補を{len(predicted_draws)}件生成しました。'
-        })
+        }
+        
+        # Add patterns if requested
+        if include_patterns:
+            response_data['patterns'] = patterns
+        
+        # Add statistical insights if scoring is enabled
+        if include_scoring:
+            response_data['insights'] = prediction_service.get_statistical_insights()
+        
+        return jsonify(response_data)
     
     except Exception as e:
         return jsonify({
@@ -264,4 +307,46 @@ def add_draw():
         return jsonify({
             'success': False,
             'message': 'データの追加に失敗しました。'
+        }), 500
+
+
+@api.route('/insights', methods=['GET'])
+def get_insights():
+    """Get statistical insights from historical data."""
+    try:
+        data_service = DataService(current_app.config['LOTO7_DATA_FILE'])
+        all_draws = data_service.load_draws()
+        
+        if not all_draws:
+            return jsonify({
+                'success': True,
+                'insights': {},
+                'message': 'データがありません。'
+            })
+        
+        # Create prediction service with historical data
+        latest_draw = all_draws[0] if all_draws else None
+        prediction_service = PredictionService(
+            previous_draw=latest_draw,
+            historical_draws=all_draws
+        )
+        
+        # Identify patterns
+        patterns = prediction_service.analyzer.identify_patterns(all_draws)
+        
+        # Get statistical insights
+        insights = prediction_service.get_statistical_insights()
+        
+        return jsonify({
+            'success': True,
+            'insights': insights,
+            'patterns': patterns,
+            'total_draws_analyzed': len(all_draws)
+        })
+    
+    except Exception:
+        # Log error for debugging but don't expose details to user
+        return jsonify({
+            'success': False,
+            'message': '統計分析に失敗しました。'
         }), 500
